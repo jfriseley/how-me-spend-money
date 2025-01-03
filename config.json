@@ -1,0 +1,14 @@
+{
+    "home_loan_initial_balance": 231422.57,
+    "home_loan_interest_rate": 0.0595,
+    "home_loan_minimum_repayment": 350.0,
+    "student_loan": 24699.0,
+    "student_loan_indexation_rate": 0.02,
+    "initial_fortnightly_spare_cash": 1000.0,
+    "wage_growth_rate": 0.03,
+    "investment_growth_rate": 0.07,
+    "investment_distribution_rate": 0.02,
+    "start_date": "",
+    "end_date": ""
+  }
+  
