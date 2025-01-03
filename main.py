@@ -8,9 +8,6 @@ import argparse
 import json
 from pathlib import Path
 
-START_DATE = datetime.date(2025, 1, 1)
-END_DATE = datetime.date(2045, 12, 31)
-
 
 @dataclass_json
 @dataclass
@@ -39,11 +36,11 @@ class Strategy:
 
     home_loan: float
     student_loan: float
-    investing: Optional[float] = None 
+    investing: Optional[float] = None
 
     def __post_init__(self):
 
-        if not self.investing: 
+        if not self.investing:
             self.investing = 100.0 - (self.home_loan + self.student_loan)
 
         if not (0 <= self.investing <= 100):
@@ -80,8 +77,8 @@ class InitialConditions:
 class SimulationConfig:
     initial_conditions: InitialConditions
     strategies: List[Strategy]
-    start_date: datetime.date = None
-    end_date: datetime.date = None
+    start_date: datetime.date
+    end_date: datetime.date
 
 
 @dataclass
@@ -183,7 +180,19 @@ class ActionDayFlags:
                 self.june_1st = True
 
 
-def save_simulation_state_to_csv(state: SimulationState, filename: str):
+def datetime_parser(dct):
+    for key, value in dct.items():
+        if isinstance(value, str):
+            try:
+                dct[key] = datetime.datetime.fromisoformat(value)
+            except ValueError:
+                pass
+    return dct
+
+
+def save_simulation_state_to_csv(
+    state: SimulationState, date: datetime.datetime, filename: str
+):
 
     with open(filename, mode="a", newline="") as file:
         writer = csv.writer(file)
@@ -192,6 +201,7 @@ def save_simulation_state_to_csv(state: SimulationState, filename: str):
         if file.tell() == 0:  # File is empty
             writer.writerow(
                 [
+                    "date",
                     "home_loan_balance",
                     "student_loan_balance",
                     "distribution_balance",
@@ -202,6 +212,7 @@ def save_simulation_state_to_csv(state: SimulationState, filename: str):
 
         writer.writerow(
             [
+                date.isoformat(),
                 state.home_loan_balance,
                 state.student_loan_balance,
                 state.distribution_balance,
@@ -232,13 +243,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     with open(args.config, "r") as file:
-        config_dict = json.load(file)
+        c = file.read()
+        config_dict = json.loads(c, object_hook=datetime_parser)
         config = SimulationConfig.from_dict(config_dict)
 
     print(f"Loaded config: {config}")
-
-    config.start_date = START_DATE
-    config.end_date = END_DATE
 
     results = []
     results_dir = "results"
@@ -251,7 +260,9 @@ if __name__ == "__main__":
 
     for defaultStrategy in config.strategies:
 
-        outputFolder = os.path.join(timestampedFolder, defaultStrategy.generate_output_filename())
+        outputFolder = os.path.join(
+            timestampedFolder, defaultStrategy.generate_output_filename()
+        )
         os.makedirs(outputFolder)
 
         state = SimulationState.from_config(config.initial_conditions)
@@ -303,10 +314,7 @@ if __name__ == "__main__":
 
                     state.apply_distributions(config.initial_conditions)
 
-            save_simulation_state_to_csv(
-                state,
-                os.path.join(outputFolder, "data.csv")
-            )
+            save_simulation_state_to_csv(state, current_date, os.path.join(outputFolder, "data.csv"))
             current_date += datetime.timedelta(days=1)
 
         result = SimulationResult(

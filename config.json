@@ -11,8 +11,8 @@
         "investment_growth_rate": 0.07,
         "investment_distribution_rate": 0.02
     },
-    "start_date": "",
-    "end_date": "",
+    "start_date": "2025-01-01",
+    "end_date": "2045-01-01",
     "strategies": [
         {
             "home_loan": 100.0,
