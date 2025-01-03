@@ -109,6 +109,10 @@ class SimulationState:
         if self.home_loan_balance > 0:
             self.home_loan_balance -= config.home_loan_minimum_repayment
 
+    def apply_minimum_student_loan_repayment(self, config:InitialConditions):
+        if self.student_loan_balance > 0:
+            self.student_loan_balance -= config.fortnightly_student_loan_tax*26
+
     def apply_strategy(self, strategy: Strategy, config: InitialConditions):
 
         cash_to_use = self.fortnightly_spare_cash
@@ -154,8 +158,10 @@ class ActionDayFlags:
     mortgage_repayment_day: bool = False
     first_of_the_month: bool = False
     first_of_the_quarter: bool = False
-    march_1st: bool = False
-    june_1st: bool = False
+    pay_rise: bool = False
+    student_loan_reindexation_day: bool = False
+    student_loan_minimum_repayment_applied: bool = False 
+    
 
     def __init__(self, start_date: datetime.date, current_date: datetime.date):
 
@@ -175,9 +181,11 @@ class ActionDayFlags:
                 self.first_of_the_quarter = True
 
             if current_date.month == 3:
-                self.march_1st = True
+                self.pay_rise = True
             elif current_date.month == 6:
-                self.june_1st = True
+                self.student_loan_reindexation_day = True
+            elif current_date.month == 7:
+                self.student_loan_minimum_repayment_applied = True 
 
 
 def datetime_parser(dct):
@@ -302,17 +310,23 @@ if __name__ == "__main__":
 
                 state.apply_home_loan_interest(config.initial_conditions)
 
-                if flags.march_1st:
+                if flags.pay_rise:
 
                     state.grow_wage(config.initial_conditions)
 
-                elif flags.june_1st:
+                elif flags.student_loan_reindexation_day:
 
                     state.reindex_student_loan(config.initial_conditions)
+
+                elif flags.student_loan_minimum_repayment_applied:
+
+                    state.apply_minimum_student_loan_repayment(config.initial_conditions)
 
                 if flags.first_of_the_quarter:
 
                     state.apply_distributions(config.initial_conditions)
+
+                
 
             save_simulation_state_to_csv(state, current_date, os.path.join(outputFolder, "data.csv"))
             current_date += datetime.timedelta(days=1)

@@ -23,12 +23,28 @@
             "student_loan": 100.0
         },
         {
-            "home_loan": 50.0,
-            "student_loan": 30.0
+            "home_loan": 80.0,
+            "student_loan": 20.0
+        },
+        {
+            "home_loan": 20.0,
+            "student_loan": 80.0
         },
         {
             "home_loan": 30.0,
             "student_loan": 50.0
+        },
+        {
+            "home_loan": 50.0,
+            "student_loan": 30.0
+        },
+        {
+            "home_loan": 20.0,
+            "student_loan": 10.0
+        },
+        {
+            "home_loan": 10.0,
+            "student_loan": 20.0
         }
     ]
 }
