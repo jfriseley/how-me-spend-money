@@ -1,7 +1,9 @@
 import datetime
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
+from typing import List, Optional
 import csv
+import os
 import argparse
 import json
 from pathlib import Path
@@ -12,41 +14,74 @@ END_DATE = datetime.date(2045, 12, 31)
 
 @dataclass_json
 @dataclass
-class SimulationConfig:
-    home_loan_initial_balance: float
-    home_loan_interest_rate: float
-    home_loan_minimum_repayment: float
-    student_loan: float
-    student_loan_indexation_rate: float
-    initial_fortnightly_spare_cash: float
-    wage_growth_rate: float
-    investment_growth_rate: float
-    investment_distribution_rate: float
-    start_date: datetime.date = None
-    end_date: datetime.date = None
+class Strategy:
+    """
+    Represents an allocation of income towards different financial goals.
 
+    This class is used to model the percentage of income allocated to three categories:
+    - Home loan repayment
+    - Student loan repayment
+    - Investing
 
-@dataclass
-class Allocation:
+    The sum of `home_loan` and `student_loan` should not exceed 100%. The `investing`
+    allocation is automatically calculated as the remaining percentage of the total (i.e.,
+    100% - (home_loan + student_loan)).
+
+    Attributes:
+        home_loan (float): The percentage of income allocated to home loan repayment.
+        student_loan (float): The percentage of income allocated to student loan repayment.
+        investing (float): The percentage of income allocated to investing, automatically
+                            calculated to ensure the total allocation is 100%.
+
+    Raises:
+        ValueError: If the sum of `home_loan` and `student_loan` exceeds 100%.
+    """
+
     home_loan: float
     student_loan: float
-    investing: float = 0.0
+    investing: Optional[float] = None 
 
     def __post_init__(self):
-        self.investing = 100.0 - (self.home_loan + self.student_loan)
+
+        if not self.investing: 
+            self.investing = 100.0 - (self.home_loan + self.student_loan)
 
         if not (0 <= self.investing <= 100):
             raise ValueError(
-                f"Invalid allocation. Allocations must be percentages that sum to less than 100. Got: {self.home_loan}, {self.student_loan}."
+                f"Invalid strategy. Strategies must be percentages that sum to less than 100. Got: {self.home_loan}, {self.student_loan}."
             )
 
     def generate_output_filename(self) -> str:
         home_loan_str = f"{self.home_loan:g}"
         student_loan_str = f"{self.student_loan:g}"
         investing_str = f"{self.investing:g}"
-        filename = f"allocation_home_{home_loan_str}_student_{student_loan_str}_investing_{investing_str}.csv"
+        filename = f"home_{home_loan_str}_student_{student_loan_str}_investing_{investing_str}.csv"
         safe_filename = filename.replace(":", "_").replace(" ", "_")
         return safe_filename
+
+
+@dataclass_json
+@dataclass
+class InitialConditions:
+    home_loan_initial_balance: float
+    home_loan_interest_rate: float
+    home_loan_minimum_repayment: float
+    student_loan: float
+    student_loan_indexation_rate: float
+    fortnightly_student_loan_tax: float
+    initial_fortnightly_spare_cash: float
+    wage_growth_rate: float
+    investment_growth_rate: float
+    investment_distribution_rate: float
+
+
+@dataclass_json
+@dataclass
+class SimulationConfig:
+    initial_conditions: InitialConditions
+    strategies: List[Strategy]
+    start_date: datetime.date = None
+    end_date: datetime.date = None
 
 
 @dataclass
@@ -58,7 +93,7 @@ class SimulationState:
     fortnightly_spare_cash: float
 
     @classmethod
-    def from_config(cls, config: SimulationConfig) -> "SimulationState":
+    def from_config(cls, config: InitialConditions) -> "SimulationState":
 
         return cls(
             home_loan_balance=config.home_loan_initial_balance,
@@ -68,45 +103,52 @@ class SimulationState:
             fortnightly_spare_cash=config.initial_fortnightly_spare_cash,
         )
 
-    def apply_home_loan_interest(self, config: SimulationConfig):
+    def apply_home_loan_interest(self, config: InitialConditions):
         interest_rate = config.home_loan_interest_rate / 12
         interest = self.home_loan_balance * interest_rate
         self.home_loan_balance += interest
 
-    def apply_minimum_mortgage_repayment(self, config: SimulationConfig):
+    def apply_minimum_mortgage_repayment(self, config: InitialConditions):
         if self.home_loan_balance > 0:
             self.home_loan_balance -= config.home_loan_minimum_repayment
 
-    def apply_allocation(self, allocation: Allocation, config: SimulationConfig):
+    def apply_strategy(self, strategy: Strategy, config: InitialConditions):
 
-        if self.home_loan_balance > 0:
-            cash_to_use = self.fortnightly_spare_cash
-        else:
-            cash_to_use = (
-                self.fortnightly_spare_cash + config.home_loan_minimum_repayment
-            )
+        cash_to_use = self.fortnightly_spare_cash
+
+        if self.home_loan_balance <= 0:
+            cash_to_use += config.home_loan_minimum_repayment
 
         if self.student_loan_balance <= 0:
-            cash_to_use += 250
+            cash_to_use += config.fortnightly_student_loan_tax
 
-        self.home_loan_balance -= allocation.home_loan / 100.0 * cash_to_use
-        self.student_loan_balance -= allocation.student_loan / 100.0 * cash_to_use
-        self.portfolio_value += allocation.investing / 100.0 * cash_to_use
+        self.home_loan_balance -= strategy.home_loan / 100.0 * cash_to_use
+        self.student_loan_balance -= strategy.student_loan / 100.0 * cash_to_use
+        self.portfolio_value += strategy.investing / 100.0 * cash_to_use
 
-    def grow_wage(self, config: SimulationConfig):
+    def grow_wage(self, config: InitialConditions):
         self.fortnightly_spare_cash = self.fortnightly_spare_cash * (
             1 + config.wage_growth_rate
         )
 
-    def reindex_student_loan(self, config: SimulationConfig):
+    def reindex_student_loan(self, config: InitialConditions):
         self.student_loan_balance = self.student_loan_balance * (
             1 + config.student_loan_indexation_rate
         )
 
-    def apply_distributions(self, config: SimulationConfig):
+    def apply_distributions(self, config: InitialConditions):
 
         distribution_rate = config.investment_distribution_rate / 4
         self.distribution_balance += self.portfolio_value * distribution_rate
+
+
+@dataclass_json
+@dataclass
+class SimulationResult:
+    config: InitialConditions
+    strategy: Strategy
+    net_worth: float
+    final_state: SimulationState
 
 
 @dataclass
@@ -169,7 +211,7 @@ def save_simulation_state_to_csv(state: SimulationState, filename: str):
         )
 
 
-def compute_net_worth(state: SimulationState, config: SimulationConfig):
+def compute_net_worth(state: SimulationState, config: InitialConditions):
 
     equity = config.home_loan_initial_balance - state.home_loan_balance
 
@@ -182,7 +224,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Parse configuration file")
     parser.add_argument(
-        "--config", type=Path, required=True, help="Path to the configuration JSON file"
+        "--config",
+        type=Path,
+        default="config.json",
+        help="Path to the configuration JSON file",
     )
     args = parser.parse_args()
 
@@ -195,24 +240,21 @@ if __name__ == "__main__":
     config.start_date = START_DATE
     config.end_date = END_DATE
 
-    allocations = [
-        Allocation(home_loan=100, student_loan=0),
-        Allocation(home_loan=0, student_loan=100),
-        Allocation(home_loan=50, student_loan=30),
-        Allocation(home_loan=20, student_loan=30),
-    ]
+    results = []
+    results_dir = "results"
+    os.makedirs(results_dir, exist_ok=True)
 
-    net_worths = []
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    timestampedFolder = os.path.join(results_dir, timestamp)
 
-    for defaultAllocation in allocations:
+    os.makedirs(timestampedFolder, exist_ok=True)
 
-        print(f"Allocation: {defaultAllocation}")
+    for defaultStrategy in config.strategies:
 
-        outputFile = defaultAllocation.generate_output_filename()
+        outputFolder = os.path.join(timestampedFolder, defaultStrategy.generate_output_filename())
+        os.makedirs(outputFolder)
 
-        state = SimulationState.from_config(config)
-
-        print(f"Initial simulation state: {state}")
+        state = SimulationState.from_config(config.initial_conditions)
 
         current_date = config.start_date
 
@@ -220,62 +262,67 @@ if __name__ == "__main__":
             flags = ActionDayFlags(config.start_date, current_date)
 
             if flags.mortgage_repayment_day:
-                state.apply_minimum_mortgage_repayment(config)
+                state.apply_minimum_mortgage_repayment(config.initial_conditions)
 
             if flags.payday:
 
                 if state.home_loan_balance > 0:
                     if state.student_loan_balance > 0:
-                        allocation = defaultAllocation
+                        strategy = defaultStrategy
                     else:
-                        allocation = Allocation(
-                            home_loan=defaultAllocation.home_loan
-                            + defaultAllocation.student_loan / 2,
+                        strategy = Strategy(
+                            home_loan=defaultStrategy.home_loan
+                            + defaultStrategy.student_loan / 2,
                             student_loan=0,
                         )
                 else:
                     if state.student_loan_balance > 0:
-                        allocation = Allocation(
+                        strategy = Strategy(
                             home_loan=0,
-                            student_loan=defaultAllocation.student_loan
-                            + defaultAllocation.home_loan / 2,
+                            student_loan=defaultStrategy.student_loan
+                            + defaultStrategy.home_loan / 2,
                         )
                     else:
-                        allocation = Allocation(home_loan=0, student_loan=0)
+                        strategy = Strategy(home_loan=0, student_loan=0)
 
-                state.apply_allocation(allocation, config)
+                state.apply_strategy(strategy, config.initial_conditions)
 
             if flags.first_of_the_month:
 
-                state.apply_home_loan_interest(config)
+                state.apply_home_loan_interest(config.initial_conditions)
 
                 if flags.march_1st:
 
-                    state.grow_wage(config)
+                    state.grow_wage(config.initial_conditions)
 
                 elif flags.june_1st:
 
-                    state.reindex_student_loan(config)
+                    state.reindex_student_loan(config.initial_conditions)
 
                 if flags.first_of_the_quarter:
 
-                    state.apply_distributions(config)
+                    state.apply_distributions(config.initial_conditions)
 
-            save_simulation_state_to_csv(state, outputFile)
+            save_simulation_state_to_csv(
+                state,
+                os.path.join(outputFolder, "data.csv")
+            )
             current_date += datetime.timedelta(days=1)
 
-        print(f"Final simulation state: {state}")
+        result = SimulationResult(
+            config=config.initial_conditions,
+            strategy=defaultStrategy,
+            net_worth=compute_net_worth(state, config.initial_conditions),
+            final_state=state,
+        )
 
-        net_worth = compute_net_worth(state, config)
-        print(f"Final net worth: {net_worth}")
-        net_worths.append(net_worth)
-        print()
-        print()
+        results.append(result)
 
-    max_net_worth = max(net_worths)
+        with open(os.path.join(outputFolder, "result.json"), "w") as f:
+            f.write(result.to_json())
 
-    max_net_worth_index = net_worths.index(max_net_worth)
+    best_result = max(results, key=lambda obj: obj.net_worth)
 
     print(
-        f"Allocation with the highest net worth ({max_net_worth}): {allocations[max_net_worth_index]}"
+        f"Strategy with the highest net worth ({best_result.net_worth}): {best_result.strategy}"
     )

@@ -1,14 +1,34 @@
 {
-    "home_loan_initial_balance": 231422.57,
-    "home_loan_interest_rate": 0.0595,
-    "home_loan_minimum_repayment": 350.0,
-    "student_loan": 24699.0,
-    "student_loan_indexation_rate": 0.02,
-    "initial_fortnightly_spare_cash": 1000.0,
-    "wage_growth_rate": 0.03,
-    "investment_growth_rate": 0.07,
-    "investment_distribution_rate": 0.02,
+    "initial_conditions": {
+        "home_loan_initial_balance": 231422.57,
+        "home_loan_interest_rate": 0.0595,
+        "home_loan_minimum_repayment": 350.0,
+        "student_loan": 30000.0,
+        "student_loan_indexation_rate": 0.02,
+        "fortnightly_student_loan_tax": 250,
+        "initial_fortnightly_spare_cash": 1000.0,
+        "wage_growth_rate": 0.03,
+        "investment_growth_rate": 0.07,
+        "investment_distribution_rate": 0.02
+    },
     "start_date": "",
-    "end_date": ""
-  }
-  
+    "end_date": "",
+    "strategies": [
+        {
+            "home_loan": 100.0,
+            "student_loan": 0.0
+        },
+        {
+            "home_loan": 0.0,
+            "student_loan": 100.0
+        },
+        {
+            "home_loan": 50.0,
+            "student_loan": 30.0
+        },
+        {
+            "home_loan": 30.0,
+            "student_loan": 50.0
+        }
+    ]
+}
