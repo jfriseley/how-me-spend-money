@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 START_DATE = datetime.date(2025, 1, 1)
-END_DATE = datetime.date(2030, 12, 31)
+END_DATE = datetime.date(2045, 12, 31)
 
 
 @dataclass_json
@@ -87,7 +87,7 @@ class SimulationState:
             )
 
         if self.student_loan_balance <= 0:
-            cash_to_use *= 1.08
+            cash_to_use += 250
 
         self.home_loan_balance -= allocation.home_loan / 100.0 * cash_to_use
         self.student_loan_balance -= allocation.student_loan / 100.0 * cash_to_use
@@ -195,8 +195,6 @@ if __name__ == "__main__":
     config.start_date = START_DATE
     config.end_date = END_DATE
 
-    current_date = config.start_date
-
     allocations = [
         Allocation(home_loan=100, student_loan=0),
         Allocation(home_loan=0, student_loan=100),
@@ -207,11 +205,17 @@ if __name__ == "__main__":
     net_worths = []
 
     for defaultAllocation in allocations:
+
         print(f"Allocation: {defaultAllocation}")
+
         outputFile = defaultAllocation.generate_output_filename()
+
         state = SimulationState.from_config(config)
+
         print(f"Initial simulation state: {state}")
+
         current_date = config.start_date
+
         while current_date <= config.end_date:
             flags = ActionDayFlags(config.start_date, current_date)
 
