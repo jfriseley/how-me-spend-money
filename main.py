@@ -9,6 +9,7 @@ from pathlib import Path
 START_DATE = datetime.date(2025, 1, 1)
 END_DATE = datetime.date(2030, 12, 31)
 
+
 @dataclass_json
 @dataclass
 class SimulationConfig:
@@ -21,8 +22,8 @@ class SimulationConfig:
     wage_growth_rate: float
     investment_growth_rate: float
     investment_distribution_rate: float
-    start_date: datetime.date = None 
-    end_date: datetime.date = None 
+    start_date: datetime.date = None
+    end_date: datetime.date = None
 
 
 @dataclass
@@ -38,7 +39,7 @@ class Allocation:
             raise ValueError(
                 f"Invalid allocation. Allocations must be percentages that sum to less than 100. Got: {self.home_loan}, {self.student_loan}."
             )
-        
+
     def generate_output_filename(self) -> str:
         home_loan_str = f"{self.home_loan:g}"
         student_loan_str = f"{self.student_loan:g}"
@@ -46,6 +47,7 @@ class Allocation:
         filename = f"allocation_home_{home_loan_str}_student_{student_loan_str}_investing_{investing_str}.csv"
         safe_filename = filename.replace(":", "_").replace(" ", "_")
         return safe_filename
+
 
 @dataclass
 class SimulationState:
@@ -66,7 +68,6 @@ class SimulationState:
             fortnightly_spare_cash=config.initial_fortnightly_spare_cash,
         )
 
-    # monthly
     def apply_home_loan_interest(self, config: SimulationConfig):
         interest_rate = config.home_loan_interest_rate / 12
         interest = self.home_loan_balance * interest_rate
@@ -80,17 +81,17 @@ class SimulationState:
 
         if self.home_loan_balance > 0:
             cash_to_use = self.fortnightly_spare_cash
-        else: 
-            cash_to_use = self.fortnightly_spare_cash + config.home_loan_minimum_repayment
-        self.home_loan_balance -= (
-            allocation.home_loan / 100.0 * cash_to_use
-        )
-        self.student_loan_balance -= (
-            allocation.student_loan / 100.0 * cash_to_use
-        )
-        self.portfolio_value += (
-            allocation.investing / 100.0 * cash_to_use
-        )
+        else:
+            cash_to_use = (
+                self.fortnightly_spare_cash + config.home_loan_minimum_repayment
+            )
+
+        if self.student_loan_balance <= 0:
+            cash_to_use *= 1.08
+
+        self.home_loan_balance -= allocation.home_loan / 100.0 * cash_to_use
+        self.student_loan_balance -= allocation.student_loan / 100.0 * cash_to_use
+        self.portfolio_value += allocation.investing / 100.0 * cash_to_use
 
     def grow_wage(self, config: SimulationConfig):
         self.fortnightly_spare_cash = self.fortnightly_spare_cash * (
@@ -194,16 +195,13 @@ if __name__ == "__main__":
     config.start_date = START_DATE
     config.end_date = END_DATE
 
-
     current_date = config.start_date
-
-
 
     allocations = [
         Allocation(home_loan=100, student_loan=0),
         Allocation(home_loan=0, student_loan=100),
         Allocation(home_loan=50, student_loan=30),
-        Allocation(home_loan=20, student_loan=30)
+        Allocation(home_loan=20, student_loan=30),
     ]
 
     net_worths = []
@@ -211,7 +209,7 @@ if __name__ == "__main__":
     for defaultAllocation in allocations:
         print(f"Allocation: {defaultAllocation}")
         outputFile = defaultAllocation.generate_output_filename()
-        state = SimulationState.from_config(config)    
+        state = SimulationState.from_config(config)
         print(f"Initial simulation state: {state}")
         current_date = config.start_date
         while current_date <= config.end_date:
@@ -225,14 +223,14 @@ if __name__ == "__main__":
                 if state.home_loan_balance > 0:
                     if state.student_loan_balance > 0:
                         allocation = defaultAllocation
-                    else: 
+                    else:
                         allocation = Allocation(
                             home_loan=defaultAllocation.home_loan
                             + defaultAllocation.student_loan / 2,
                             student_loan=0,
                         )
-                else: 
-                    if state.student_loan_balance > 0: 
+                else:
+                    if state.student_loan_balance > 0:
                         allocation = Allocation(
                             home_loan=0,
                             student_loan=defaultAllocation.student_loan
@@ -274,4 +272,6 @@ if __name__ == "__main__":
 
     max_net_worth_index = net_worths.index(max_net_worth)
 
-    print(f"Allocation with the highest net worth ({max_net_worth}): {allocations[max_net_worth_index]}")
+    print(
+        f"Allocation with the highest net worth ({max_net_worth}): {allocations[max_net_worth_index]}"
+    )
