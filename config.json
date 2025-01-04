@@ -3,7 +3,7 @@
         "home_loan_initial_balance": 231422.57,
         "home_loan_interest_rate": 0.0595,
         "home_loan_minimum_repayment": 350.0,
-        "student_loan": 30000.0,
+        "student_loan": 25000.0,
         "student_loan_indexation_rate": 0.02,
         "fortnightly_student_loan_tax": 250,
         "initial_fortnightly_spare_cash": 1000.0,
@@ -12,7 +12,7 @@
         "investment_distribution_rate": 0.02
     },
     "start_date": "2025-01-01",
-    "end_date": "2045-01-01",
+    "end_date": "2030-01-01",
     "strategies": [
         {
             "home_loan": 100.0,

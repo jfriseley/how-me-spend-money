@@ -1,25 +1,33 @@
 # Cash distribution simulation
 
+
+## Disclaimer
+
+This software should not be used to make financial decisions. The author is not liable for any losses incurred if this software is used to make financial decisions.
+
+
+## Overview
+
 This simulation determines the optimal way to distribute cash between three goals: paying off the mortgage, paying off a student loan and investing. The strategy it computes is optimal in the sense of final net worth, defined as:
 
 (equity + investment portfolio + dividends) - (home loan + student loan)
 
-# Running the simulation 
+## Running the simulation 
 
 ```
 pip install -r requirements.txt
 python main.py
 ```
 
-# Simulation dynamics
+## Simulation dynamics
 
 - Spare cash is allocated to goals fortnightly
 - Minimum mortgage repayments are weekly
 - Wage growth is yearly
-- Student loans are indexed yearly
+- Student loans are indexed and paid off from mandatory taxes yearly (Australian system)
 - Interest on the home loan accrues monthly
 
-# Assumptions
+## Assumptions
 
 - Once the student loan is paid of, an amount of money `SimulationConfig.fortnightly_student_loan_tax` is added to fortnightly spare cash.
 - Once the home loan is paid off, the minimum repayment is added to fortnightly spare cash.
