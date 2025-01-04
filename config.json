@@ -12,7 +12,7 @@
         "investment_distribution_rate": 0.02
     },
     "start_date": "2025-01-01",
-    "end_date": "2030-01-01",
+    "end_date": "2035-01-01",
     "strategies": [
         {
             "home_loan": 100.0,

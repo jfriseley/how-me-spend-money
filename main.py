@@ -137,6 +137,10 @@ class SimulationState:
             1 + config.student_loan_indexation_rate
         )
 
+    def grow_portfolio(self, config: InitialConditions):
+        growth_rate = config.investment_growth_rate / 4 
+        self.portfolio_value += self.portfolio_value * growth_rate 
+
     def apply_distributions(self, config: InitialConditions):
 
         distribution_rate = config.investment_distribution_rate / 4
@@ -326,6 +330,7 @@ if __name__ == "__main__":
                 if flags.first_of_the_quarter:
 
                     state.apply_distributions(config.initial_conditions)
+                    state.grow_portfolio(config.initial_conditions)
 
             save_simulation_state_to_csv(
                 state, current_date, os.path.join(outputFolder, "data.csv")
