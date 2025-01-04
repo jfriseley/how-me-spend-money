@@ -109,9 +109,9 @@ class SimulationState:
         if self.home_loan_balance > 0:
             self.home_loan_balance -= config.home_loan_minimum_repayment
 
-    def apply_minimum_student_loan_repayment(self, config:InitialConditions):
+    def apply_minimum_student_loan_repayment(self, config: InitialConditions):
         if self.student_loan_balance > 0:
-            self.student_loan_balance -= config.fortnightly_student_loan_tax*26
+            self.student_loan_balance -= config.fortnightly_student_loan_tax * 26
 
     def apply_strategy(self, strategy: Strategy, config: InitialConditions):
 
@@ -160,8 +160,7 @@ class ActionDayFlags:
     first_of_the_quarter: bool = False
     pay_rise: bool = False
     student_loan_reindexation_day: bool = False
-    student_loan_minimum_repayment_applied: bool = False 
-    
+    student_loan_minimum_repayment_applied: bool = False
 
     def __init__(self, start_date: datetime.date, current_date: datetime.date):
 
@@ -185,7 +184,7 @@ class ActionDayFlags:
             elif current_date.month == 6:
                 self.student_loan_reindexation_day = True
             elif current_date.month == 7:
-                self.student_loan_minimum_repayment_applied = True 
+                self.student_loan_minimum_repayment_applied = True
 
 
 def datetime_parser(dct):
@@ -320,15 +319,17 @@ if __name__ == "__main__":
 
                 elif flags.student_loan_minimum_repayment_applied:
 
-                    state.apply_minimum_student_loan_repayment(config.initial_conditions)
+                    state.apply_minimum_student_loan_repayment(
+                        config.initial_conditions
+                    )
 
                 if flags.first_of_the_quarter:
 
                     state.apply_distributions(config.initial_conditions)
 
-                
-
-            save_simulation_state_to_csv(state, current_date, os.path.join(outputFolder, "data.csv"))
+            save_simulation_state_to_csv(
+                state, current_date, os.path.join(outputFolder, "data.csv")
+            )
             current_date += datetime.timedelta(days=1)
 
         result = SimulationResult(
